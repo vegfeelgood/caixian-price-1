@@ -4,177 +4,163 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>採鮮農產行｜當日報價單</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.12.2/firebase-app-compat.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.12.2/firebase-firestore-compat.min.js"></script>
 <style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body {
-  font-family: 'Noto Sans TC', 'PingFang TC', sans-serif;
-  background: #f7f9f7; color: #111;
-  -webkit-font-smoothing: antialiased;
-}
-.page { max-width: 1080px; margin: 0 auto; background: #fff; min-height: 100vh; padding: 28px 24px 48px; }
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Noto Sans TC','PingFang TC',sans-serif;background:#fff;color:#111;font-size:14px;-webkit-font-smoothing:antialiased}
+.page{max-width:1080px;margin:0 auto;padding:28px 24px 48px}
 
 /* ── Header ── */
-.hdr { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 22px; flex-wrap: wrap; gap: 12px; }
-.shop-name { font-size: 32px; font-weight: 900; color: #2d6a2d; letter-spacing: -.01em; }
-.shop-info { font-size: 14px; color: #444; margin-top: 8px; line-height: 2; }
-.date-block { text-align: right; }
-.date-label { font-size: 20px; font-weight: 800; color: #222; }
-.date-value { font-size: 14px; color: #444; margin-top: 4px; }
-.date-note  { font-size: 12px; color: #c05a00; margin-top: 3px; }
-.updated    { font-size: 11px; color: #bbb; margin-top: 4px; }
+.hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:22px;gap:12px;flex-wrap:wrap}
+.shop-name{font-size:32px;font-weight:900;color:#2d6a2d}
+.shop-info{font-size:14px;color:#444;margin-top:8px;line-height:2}
+.date-block{text-align:right}
+.date-label{font-size:20px;font-weight:900;color:#222}
+.date-value{font-size:14px;color:#444;margin-top:4px}
+.date-note{font-size:12px;color:#c05a00;margin-top:3px}
+.updated{font-size:11px;color:#bbb;margin-top:4px}
 
-/* ── Grid ── */
-.cats-grid {
-  display: grid;
-  gap: 0;
-  border: 1.5px solid #dde8dd;
-  border-radius: 6px;
-  overflow: hidden;
+/* ── 三欄 Grid ── */
+.price-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr;
+  border:1.5px solid #dde8dd;
+  border-radius:6px;
+  overflow:hidden;
 }
-.cat-col { display:flex; flex-direction:column; border-right:1.5px solid #dde8dd; }
-.cat-col:last-child { border-right:none; }
+.price-col{
+  border-right:1.5px solid #dde8dd;
+  display:flex;
+  flex-direction:column;
+}
+.price-col:last-child{border-right:none}
 
-/* 電腦三欄：截切+葉菜同左欄，瓜果中，菇右 */
-@media (min-width: 769px) {
-  .cats-grid { grid-template-columns: 1fr 1fr 1fr; }
-  .cat-col[data-id=cut]  { grid-column:1; grid-row:1; }
-  .cat-col[data-id=veg]  { grid-column:2; grid-row:1/3; }
-  .cat-col[data-id=leaf] { grid-column:1; grid-row:2; border-top:1.5px solid #dde8dd; }
-  .cat-col[data-id=mush] { grid-column:3; grid-row:1/3; }
+/* ── Category header ── */
+.cat-hdr{
+  padding:10px 14px;
+  font-size:14px;font-weight:900;color:#fff;
+  letter-spacing:.02em;
 }
-
-/* 手機兩欄：葉菜｜截切 / 瓜果｜菇 */
-@media (max-width: 768px) {
-  .cats-grid { grid-template-columns: 1fr 1fr; }
-  .cat-col[data-id=leaf] { grid-column:1; grid-row:1; }
-  .cat-col[data-id=cut]  { grid-column:2; grid-row:1; }
-  .cat-col[data-id=veg]  { grid-column:1; grid-row:2; border-top:1.5px solid #dde8dd; border-right:1.5px solid #dde8dd; }
-  .cat-col[data-id=mush] { grid-column:2; grid-row:2; border-top:1.5px solid #dde8dd; }
-}
-
-/* 手機：上排 葉菜｜瓜果，下排 截切｜菇與其他 */
-@media (max-width: 768px) {
-  .cats-grid { grid-template-columns: repeat(2, 1fr); }
-  .cat-col { border-bottom:1.5px solid #dde8dd; border-right:1.5px solid #dde8dd; }
-  .cat-col:nth-child(even) { border-right:none; }
-  .cat-col:nth-child(3),
-  .cat-col:nth-child(4) { border-bottom:none; }
-  /* 手機排序：上排 葉菜｜截切，下排 瓜果｜菇 */
-  .cat-col:nth-child(1) { order:2; } /* 截切 → 上排右 */
-  .cat-col:nth-child(2) { order:3; } /* 瓜果 → 下排左 */
-  .cat-col:nth-child(3) { order:1; } /* 葉菜 → 上排左 */
-  .cat-col:nth-child(4) { order:4; } /* 菇   → 下排右 */
-}
-
-/* ── Category block ── */
-.cat-hdr {
-  padding: 10px 13px;
-  font-size: 14px; font-weight: 800; color: #fff;
-  letter-spacing: .02em;
-}
-.col-lbl {
-  display: flex; justify-content: space-between;
-  padding: 5px 12px;
-  font-size: 11px; font-weight: 700; color: #999;
-  border-bottom: 1px solid #e8eee8;
-  text-transform: uppercase; letter-spacing: .04em;
+.col-lbl{
+  display:flex;justify-content:space-between;
+  padding:5px 12px;
+  font-size:11px;font-weight:700;color:#999;
+  border-bottom:1px solid #e8eee8;
+  text-transform:uppercase;letter-spacing:.04em;
 }
 
 /* ── Item rows ── */
-.item {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 6px 12px;
-  border-bottom: 1px solid #f0f5f0;
-  font-size: 14px;
+.item{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:6px 12px;
+  border-bottom:1px solid #f0f5f0;
+  font-size:14px;
 }
-.item:last-child { border-bottom: none; }
-.item-name { color: #222; flex: 1; padding-right: 10px; }
-.item-price { font-weight: 800; white-space: nowrap; font-size: 15px; }
-.item-price.up   { color: #c0392b; }
-.item-price.down { color: #1565c0; }
-.arrow { font-size: 12px; margin-left: 1px; }
-.no-price { color: #bbb; font-weight: 400; font-size: 13px; }
+.item:last-child{border-bottom:none}
+.item-name{color:#222;flex:1;padding-right:10px}
+.item-price{font-weight:900;white-space:nowrap;font-size:15px}
+.item-price.up{color:#c0392b}
+.item-price.down{color:#1565c0}
+.arrow{font-size:12px;margin-left:1px}
+.no-price{color:#bbb;font-weight:400;font-size:13px}
+
+/* 截切與葉菜分隔 */
+.cat-divider{border-top:2px solid #dde8dd}
 
 /* ── Footer ── */
-.footer { margin-top: 18px; text-align: center; font-size: 12px; color: #888; line-height: 2.2; }
-.footer-bold { font-weight: 800; color: #2d6a2d; font-size: 14px; }
+.footer{margin-top:18px;text-align:center;font-size:12px;color:#888;line-height:2.2}
+.footer-bold{font-weight:900;color:#2d6a2d;font-size:14px}
 
-.loading { text-align: center; padding: 60px; color: #888; font-size: 15px; }
+/* ── 手機：兩欄 ── */
+@media(max-width:700px){
+  .price-grid{grid-template-columns:1fr 1fr}
+  .price-col:nth-child(2){border-right:none}
+  .price-col:nth-child(3){border-top:1.5px solid #dde8dd;border-right:1.5px solid #dde8dd}
+  .price-col:nth-child(4){border-top:1.5px solid #dde8dd;border-right:none}
+}
+
+.loading{text-align:center;padding:60px;color:#888;font-size:15px}
 </style>
 </head>
 <body>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.12.2/firebase-app-compat.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.12.2/firebase-firestore-compat.min.js"></script>
-
 <div class="page" id="app"><div class="loading">載入中…</div></div>
 
 <script>
 const FB_PROJECT_ID = 'caixian-price-619c4';
 const FB_API_KEY    = 'AIzaSyDyIgF1T3qwVUdxTtfuo9SRwpiEQpfMaIA';
 
-// 顯示順序：電腦三欄 = 葉菜｜瓜果｜根莖，截切插在葉菜下面同欄
-// 實作：四個 col，手機 2x2，電腦 3 欄（葉菜+截切同欄）
-const CATS_LEFT  = [{id:'c4',name:'🔪 蔬菜截切', color:'#1a6a6a'},
-                    {id:'c1',name:'🥬 葉菜類',   color:'#3a8a3a'}];
-const CATS_MID   = [{id:'c2',name:'🍈 瓜果類',   color:'#c05a00'}];
-const CATS_RIGHT = [{id:'c3',name:'🍄 菇與其他', color:'#6a3aaa'}];
-
 function today() {
   const d = new Date();
   return `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日`;
 }
-function esc(s) {
-  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-function cutSellPrice(item, all) {
-  const src = all.find(i => i.id === item.srcId);
-  if (!src) return 0;
-  const sp = calcSell(src, all);
-  if (!sp) return 0;
-  if ((item.cutType||'whole') === 'whole') {
-    return Math.round(sp + (Number(item.cutFee)||0));
-  }
-  const w = Number(item.srcWeight)||1;
-  const y = Number(item.cutYield)||1;
-  const a = Number(item.cutAddon)||0;
-  return Math.round((sp / w) / y + a);
-}
-
+// ── 計算售價 ────────────────────────────────────────────────────────────────
 function calcSell(item, all) {
-  if (item.cat === 'c4' && item.srcId) return cutSellPrice(item, all);
+  if (item.cat === 'c4' && item.srcId) return cutPrice(item, all);
   const cost = Number(item.cost)||0;
   if (!cost) return Number(item.price)||0;
-  if (item.type === 'manual') return Number(item.price)||0;
-  if (item.type === 'fixed')  return cost + (Number(item.markup)||0);
+  if (item.type==='manual') return Number(item.price)||0;
+  if (item.type==='fixed')  return cost + (Number(item.markup)||0);
   return Math.round(cost * (1 + (Number(item.markup)||0) / 100));
 }
 
-function buildCol(catList, all) {
-  return catList.map(cat => {
-    const rows = all.filter(it => it.cat === cat.id && it.visible !== false);
-    if (!rows.length) return '';
-    const items = rows.map(item => {
-      const sp = calcSell(item, all);
-      const cls = item.trend === 'up' ? ' up' : item.trend === 'down' ? ' down' : '';
-      const arrow = item.trend === 'up'   ? '<span class="arrow">↑</span>'
-                  : item.trend === 'down' ? '<span class="arrow">↓</span>' : '';
-      const priceHtml = sp > 0
-        ? `<span class="item-price${cls}">${sp}${arrow}</span>`
-        : `<span class="no-price">暫無</span>`;
-      return `<div class="item"><span class="item-name">${esc(item.name)}</span>${priceHtml}</div>`;
-    }).join('');
-    return `
-      <div class="cat-hdr" style="background:${esc(cat.color)}">${esc(cat.name)}</div>
-      <div class="col-lbl"><span>品項</span><span>單價</span></div>
-      ${items}`;
-  }).join('');
+function cutPrice(item, all) {
+  const src = all.find(i => i.id === item.srcId);
+  if (!src) return 0;
+  if ((item.cutType||'whole') === 'whole') {
+    const sp = calcSell(src, all);
+    return sp ? Math.round(sp + (Number(item.cutFee)||0)) : 0;
+  }
+  // 散切：自動找同原料整件切
+  const whole = all.find(i => i.cat==='c4' && i.srcId===item.srcId && (i.cutType||'whole')==='whole' && i.id!==item.id);
+  const base  = whole ? calcSell(whole, all) : calcSell(src, all);
+  if (!base) return 0;
+  const w = Number(item.srcWeight)||1;
+  const y = Number(item.cutYield)||1;
+  const a = Number(item.cutAddon)||0;
+  return Math.round((base/w)/y + a);
 }
 
+// ── 建立品項列 ───────────────────────────────────────────────────────────────
+function itemRow(item, all) {
+  const sp   = calcSell(item, all);
+  const cls  = item.trend==='up' ? ' up' : item.trend==='down' ? ' down' : '';
+  const arrow = item.trend==='up'   ? `<span class="arrow">↑</span>`
+              : item.trend==='down' ? `<span class="arrow">↓</span>` : '';
+  const price = sp > 0
+    ? `<span class="item-price${cls}">${sp}${arrow}</span>`
+    : `<span class="no-price">暫無</span>`;
+  return `<div class="item"><span class="item-name">${esc(item.name)}</span>${price}</div>`;
+}
+
+// ── 建立類別區塊 ─────────────────────────────────────────────────────────────
+function catBlock(cat, all, divider) {
+  const rows = all.filter(i => i.cat===cat.id && i.visible!==false);
+  if (!rows.length) return '';
+  return `
+    ${divider ? '<div class="cat-divider"></div>' : ''}
+    <div class="cat-hdr" style="background:${esc(cat.color)}">${esc(cat.name)}</div>
+    <div class="col-lbl"><span>品項</span><span>單價</span></div>
+    ${rows.map(i => itemRow(i, all)).join('')}`;
+}
+
+// ── 渲染頁面 ─────────────────────────────────────────────────────────────────
 function render(data) {
-  const meta = data.meta || {};
+  const meta = data.meta  || {};
   const all  = data.items || [];
   const upd  = data.updatedAt ? new Date(data.updatedAt).toLocaleString('zh-TW') : '';
+
+  // 欄位定義
+  const COL_LEFT  = [{id:'c4',name:'🔪 蔬菜截切',color:'#1a6a6a'},{id:'c1',name:'🥬 葉菜類',color:'#3a8a3a'}];
+  const COL_MID   = [{id:'c2',name:'🍈 瓜果類',  color:'#c05a00'}];
+  const COL_RIGHT = [{id:'c3',name:'🍄 菇與其他',color:'#6a3aaa'}];
+
+  function buildCol(cats) {
+    return cats.map((cat, i) => catBlock(cat, all, i > 0)).join('');
+  }
 
   document.getElementById('app').innerHTML = `
     <div class="hdr">
@@ -194,11 +180,10 @@ function render(data) {
       </div>
     </div>
 
-    <div class="cats-grid">
-      <div class="cat-col" data-id="cut" >${buildCol([CATS_LEFT[0]], all)}</div>
-      <div class="cat-col" data-id="veg" >${buildCol(CATS_MID,       all)}</div>
-      <div class="cat-col" data-id="leaf">${buildCol([CATS_LEFT[1]], all)}</div>
-      <div class="cat-col" data-id="mush">${buildCol(CATS_RIGHT,     all)}</div>
+    <div class="price-grid">
+      <div class="price-col">${buildCol(COL_LEFT)}</div>
+      <div class="price-col">${buildCol(COL_MID)}</div>
+      <div class="price-col">${buildCol(COL_RIGHT)}</div>
     </div>
 
     <div class="footer">
@@ -207,6 +192,7 @@ function render(data) {
     </div>`;
 }
 
+// ── Firebase 載入 ────────────────────────────────────────────────────────────
 async function load() {
   try {
     const app = firebase.apps[0] || firebase.initializeApp({
@@ -223,7 +209,6 @@ async function load() {
     document.getElementById('app').innerHTML = `<div class="loading">錯誤：${e.message}</div>`;
   }
 }
-
 load();
 </script>
 </body>
